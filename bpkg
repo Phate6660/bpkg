@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+
+ARCH="$(uname -m)"
+SHARE="${HOME}/.local/share/pkg"
+BIN="${SHARE}/bin"
+DOWNLOADS="${SHARE}/downloads"
+REPO="${SHARE}/repository"
+OPT="${SHARE}/opt"
+
+# This will create both ${SHARE} and ${REPO} if non-existent.
+# ${1} = directory
+ensure_directory() {
+    if ! [ -d "${1}" ]; then
+        mkdir -p "${1}"
+    fi
+}
+
+ensure_directory "${BIN}"
+ensure_directory "${DOWNLOADS}"
+ensure_directory "${REPO}"
+ensure_directory "${OPT}"
+
+# Placeholder function for unimplemented stuff.
+unimplemented() {
+    printf "Sorry, that operation isn't supported yet.\n"
+}
+
+# ${1} = package name
+# ${2} = url
+download_tarball() {
+    if ! [ -e "${DOWNLOADS}/${1}" ]; then
+        aria2c -c -j 16 -x 16 -s 16 -k 1M -d "${DOWNLOADS}" -o "${1}" "${2}"
+    else
+        printf "The tarball was already downloaded.\n"
+    fi
+}
+
+# ${1} = package name
+# ${2} = tarball
+extract_tarball() {
+    local package_opt="${OPT}/${1}"
+    if ! [ -d "${package_opt}" ]; then
+        mkdir "${package_opt}"
+        tar xf "${2}" -C "${package_opt}"
+        printf "Package '%s' was successfully installed.\n" "${1}"
+    else
+        printf "The tarball was already extracted.\n"
+    fi
+}
+
+# ${1} = package name
+symlink_executable() {
+    local symlink="${BIN}/${1}"
+    if ! [ -e "${symlink}" ]; then
+        ln -s "${OPT}/${1}/${EXECUTABLE}" "${symlink}"
+        printf "Executable symlinked to '%s'.\n" "${symlink}"
+    else
+        printf "The executable was already symlinked.\n"
+    fi
+}
+
+# ${1} = package name
+install_package() {
+    if [ -e "${REPO}/${1}" ]; then
+        printf "Package '%s' found! Installing now.\n" "${1}"
+        source "${REPO}/${1}"
+        download_tarball "${1}" "${URLS[${ARCH}]}"
+        extract_tarball "${1}" "${DOWNLOADS}/${1}"
+        symlink_executable "${1}"
+    else
+        printf "ERROR: Package '%s' not found.\n" "${1}"
+    fi
+}
+
+# ${1} = operation
+# ${2} = package
+case "${1}" in
+    "install") install_package "${2}";;
+    "search") unimplemented;;
+    *) printf "This operation REALLY isn't supported yet.\n";;
+esac
